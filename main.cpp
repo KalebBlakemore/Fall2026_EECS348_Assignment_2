@@ -10,170 +10,378 @@ Purpose:  Implements a custom MaxHeap-based priority queue from scratch
  *              -> Other Person) and recency (newer dates prioritized).
  * Inputs: Command stream or input file containing EMAIL, NEXT, READ, and COUNT.
  * Output: Terminal printouts displaying unread counts and next email details.
+Collaborators: ChatGPT and [second GenAI], as documented in GenAI analysis PDF
+Sources: ChatGPT and [second GenAI]
+Creation Date: 09/16/2026
+Revision Date: 09/17/2026
+Revisions: Corrected priority handling and improved heap implementation.
 */
-#include <iostream>  // Includes standard input/output stream library for terminal printing
-#include <string>    // Includes standard string library to handle text for email fields
-#include <vector>    // Includes standard vector container to act as our underlying heap list
-#include <sstream>   // Includes string stream library to parse command lines easily
 
-using namespace std; // Allows usage of standard library identifiers without prefixing std::
+#include <iostream>     // Includes the standard input/output library.
+#include <string>       // Includes the string library for email information.
+#include <vector>       // Includes vector to store the list-based heap.
+#include <sstream>      // Includes string stream tools for parsing input.
 
-// Structure representing an individual email in the CEO's inbox
+using namespace std;    // Allows standard library names to be used without std::.
+
+
+
+// Structure representing one email in the CEO's inbox.
+// This structure was generated as a starting point by ChatGPT
+// and was reviewed and modified by Kaleb Blakemore.
 struct Email {
-    string category; // Sender category (Boss, Subordinate, Peer, Important Person, Other Person)
-    string subject;  // Subject line text describing the email content
-    string date;     // Date string formatted as MM-DD-YYYY for recency comparison
+    string category;    // Stores the sender category.
+    string subject;     // Stores the email subject.
+    string date;        // Stores the email date in MM-DD-YYYY format.
 };
 
-// Function to convert sender category strings into numerical priority ranks (lower number = higher priority)
+
+
+// Converts a sender category into a numerical priority.
+// A larger number represents a higher priority so that the
+// structure behaves as a MaxHeap.
+//
+// This function was generated as a starting point by ChatGPT
+// and was reviewed and modified by Kaleb Blakemore.
 int getCategoryPriority(const string& category) {
-    if (category == "Boss") return 1;              // Boss category holds the highest priority rank (1)
-    if (category == "Subordinate") return 2;       // Subordinate category holds second highest priority rank (2)
-    if (category == "Peer") return 3;              // Peer category holds third priority rank (3)
-    if (category == "Important Person") return 4;  // Important Person category holds fourth priority rank (4)
-    return 5;                                      // Any other category defaults to the lowest priority rank (5)
+
+    if (category == "Boss")
+        return 5;       // Boss has the highest priority.
+
+    if (category == "Subordinate")
+        return 4;       // Subordinate has the second-highest priority.
+
+    if (category == "Peer")
+        return 3;       // Peer has the third-highest priority.
+
+    if (category == "ImportantPerson")
+        return 2;       // ImportantPerson has the fourth-highest priority.
+
+    return 1;           // OtherPerson has the lowest priority.
 }
 
-// Function to compare two emails and return true if email 'a' has strictly higher priority than email 'b'
+
+
+// Compares two emails and returns true when email a has a higher
+// priority than email b.
+//
+// This comparator was generated as a starting point by ChatGPT
+// and was reviewed and modified by Kaleb Blakemore.
 bool compareEmails(const Email& a, const Email& b) {
-    int pA = getCategoryPriority(a.category);      // Retrieves the numerical priority rank for email a
-    int pB = getCategoryPriority(b.category);      // Retrieves the numerical priority rank for email b
 
-    if (pA != pB) {                                // Checks if the two emails belong to different sender categories
-        return pA < pB;                            // Returns true if email a has a higher priority rank (lower numerical value)
+    // Get the numerical priority for both sender categories.
+    int priorityA = getCategoryPriority(a.category);
+    int priorityB = getCategoryPriority(b.category);
+
+    // If the sender categories are different, use category priority.
+    if (priorityA != priorityB) {
+        return priorityA > priorityB;
     }
 
-    // If categories are identical, compare dates (MM-DD-YYYY format allows string comparison for recency)
-    // Note: Newer dates should be prioritized, so a "greater" date string means a more recent date.
-    return a.date > b.date;                        // Returns true if email a has a newer (greater) date than email b
+    // If the sender categories are the same, compare the dates.
+    // Because the required date format is MM-DD-YYYY, the strings
+    // can be compared to determine which date is newer.
+    return a.date > b.date;
 }
 
-// Class implementing a custom MaxHeap priority queue from scratch using an underlying vector list
+
+
+// This MaxHeap class was generated as a starting point by ChatGPT
+// and was reviewed and modified by Kaleb Blakemore.
+//
+// The class implements a custom list-based MaxHeap using a vector.
+// No pre-existing heap or priority queue module is used.
 class MaxHeap {
+
 private:
-    vector<Email> heap; // Vector list storing the email heap elements in sequential memory slots
 
-    // Helper function to bubble an element up to its correct position to maintain heap property
+    // Vector acts as the list-based storage for the MaxHeap.
+    vector<Email> heap;
+
+
+    // Moves an email upward through the heap until the MaxHeap
+    // priority property has been restored.
     void heapifyUp(int index) {
-        if (index == 0) return;               // Base case: if we have reached the root node, stop recursion
-        int parent = (index - 1) / 2;         // Calculates the array index of the current node's parent
 
-        // Checks if the current node has higher priority than its parent using our comparator
+        // If the element is already at the root, no more work is needed.
+        if (index == 0)
+            return;
+
+        // Calculate the index of the current element's parent.
+        int parent = (index - 1) / 2;
+
+        // If the current email has a higher priority than its parent,
+        // swap the two emails.
         if (compareEmails(heap[index], heap[parent])) {
-            swap(heap[index], heap[parent]);  // Swaps the current node with its parent if priority condition is met
-            heapifyUp(parent);                // Recursively calls heapifyUp on the parent index to continue bubbling up
+
+            swap(heap[index], heap[parent]);
+
+            // Continue moving the email upward if necessary.
+            heapifyUp(parent);
         }
     }
 
-    // Helper function to push an element down to its correct position after an extraction
+
+    // Moves an email downward through the heap after the highest-priority
+    // email has been removed.
     void heapifyDown(int index) {
-        int leftChild = 2 * index + 1;    // Calculates the index of the left child node
-        int rightChild = 2 * index + 2;   // Calculates the index of the right child node
-        int highest = index;              // Assumes the current index holds the highest priority initially
 
-        // Checks if the left child exists and has higher priority than the current highest
-        if (leftChild < heap.size() && compareEmails(heap[leftChild], heap[highest])) {
-            highest = leftChild;          // Updates the highest priority index to the left child
+        // Calculate the indexes of the left and right children.
+        int leftChild = 2 * index + 1;
+        int rightChild = 2 * index + 2;
+
+        // Start by assuming the current index contains the highest
+        // priority email.
+        int highest = index;
+
+
+        // Check whether the left child exists and has a higher priority.
+        if (leftChild < static_cast<int>(heap.size()) &&
+            compareEmails(heap[leftChild], heap[highest])) {
+
+            highest = leftChild;
         }
 
-        // Checks if the right child exists and has higher priority than the current highest
-        if (rightChild < heap.size() && compareEmails(heap[rightChild], heap[highest])) {
-            highest = rightChild;         // Updates the highest priority index to the right child
+
+        // Check whether the right child exists and has a higher priority.
+        if (rightChild < static_cast<int>(heap.size()) &&
+            compareEmails(heap[rightChild], heap[highest])) {
+
+            highest = rightChild;
         }
 
-        // If the highest priority index has shifted, swap elements and continue sifting down
+
+        // If one of the children has a higher priority than the current
+        // element, swap them and continue moving downward.
         if (highest != index) {
-            swap(heap[index], heap[highest]); // Swaps the current node with the highest priority child
-            heapifyDown(highest);              // Recursively calls heapifyDown on the new child index
+
+            swap(heap[index], heap[highest]);
+
+            heapifyDown(highest);
         }
     }
+
 
 public:
-    // Method to insert a new email into the priority queue
+
+    // Inserts a new email into the MaxHeap.
+    // This method was generated as a starting point by ChatGPT
+    // and was reviewed and modified by Kaleb Blakemore.
     void insert(const Email& newEmail) {
-        heap.push_back(newEmail);             // Appends the new email onto the end of the vector list
-        heapifyUp(heap.size() - 1);           // Restores the MaxHeap property by bubbling the new element up
+
+        // Add the new email to the end of the vector.
+        heap.push_back(newEmail);
+
+        // Restore the MaxHeap property by moving the new email upward.
+        heapifyUp(static_cast<int>(heap.size()) - 1);
     }
 
-    // Method to return the highest priority email without removing it (used for NEXT command)
+
+    // Returns the highest-priority email without removing it.
+    // This is used by the NEXT command.
     Email peek() const {
-        return heap.front();                  // Returns the root element of the max heap
+
+        return heap.front();
     }
 
-    // Method to remove the highest priority email from the heap (used for READ command)
+
+    // Removes the highest-priority email from the MaxHeap.
+    // This method was generated as a starting point by ChatGPT
+    // and was reviewed and modified by Kaleb Blakemore.
     void removeMax() {
-        if (heap.empty()) return;             // Safety check: returns immediately if the heap is empty
-        heap[0] = heap.back();                // Moves the last element in the vector up to the root position
-        heap.pop_back();                      // Removes the duplicate last element from the vector
+
+        // If the heap is already empty, there is nothing to remove.
+        if (heap.empty())
+            return;
+
+        // Move the last email to the root position.
+        heap[0] = heap.back();
+
+        // Remove the duplicate last element.
+        heap.pop_back();
+
+
+        // If emails remain, restore the MaxHeap property.
         if (!heap.empty()) {
-            heapifyDown(0);                   // Restores the MaxHeap property by sifting the root element down
+
+            heapifyDown(0);
         }
     }
 
-    // Method to check how many unread emails remain in the heap (used for COUNT command)
+
+    // Returns the current number of unread emails.
     int size() const {
-        return heap.size();                   // Returns the total number of elements currently stored in the vector
+
+        return static_cast<int>(heap.size());
     }
 
-    // Method to check if the heap vector is completely empty
+
+    // Returns true when the MaxHeap contains no emails.
     bool isEmpty() const {
-        return heap.empty();                  // Returns true if the vector size is 0, false otherwise
+
+        return heap.empty();
     }
 };
-// Main function where program execution begins and command parsing occurs
+
+
+
+// Main function where the program begins execution.
+//
+// The command-processing portion was generated as a starting point
+// by ChatGPT and was reviewed and modified by Kaleb Blakemore.
 int main() {
-    MaxHeap inboxHeap;                       // Instantiates our custom MaxHeap priority queue object
-    string line;                             // String variable to store each incoming line of commands
 
-    // Loop to read commands line-by-line from standard input (supports terminal input or file redirection)
+    // Create the MaxHeap that will store the CEO's emails.
+    MaxHeap inboxHeap;
+
+    // Stores each input line read from the test file or terminal.
+    string line;
+
+
+    // Continue reading commands until the end of the input.
     while (getline(cin, line)) {
-        if (line.empty()) continue;          // Skips empty lines to avoid parsing errors
 
-        if (line.rfind("EMAIL", 0) == 0) {   // Checks if the line starts with the "EMAIL" command keyword
-            string data = line.substr(6);    // Extracts the substring after the "EMAIL " prefix
-            
-            size_t firstComma = data.find(',');  // Finds the index of the first comma separating category and subject
-            size_t lastComma = data.rfind(',');  // Finds the index of the last comma separating subject and date
+        // Ignore completely empty lines.
+        if (line.empty())
+            continue;
 
-            if (firstComma != string::npos && lastComma != string::npos && firstComma != lastComma) {
-                Email newEmail;              // Declares a temporary Email object to hold parsed data
-                
-                // Extracts and trims the sender category string
-                string cat = data.substr(0, firstComma);
-                size_t start = cat.find_first_not_of(" \t");
-                size_t end = cat.find_last_not_of(" \t");
-                newEmail.category = (start != string::npos) ? cat.substr(start, end - start + 1) : cat;
 
-                // Extracts and trims the email subject line (between first and last comma)
-                string subj = data.substr(firstComma + 1, lastComma - firstComma - 1);
-                start = subj.find_first_not_of(" \t");
-                end = subj.find_last_not_of(" \t");
-                newEmail.subject = (start != string::npos) ? subj.substr(start, end - start + 1) : subj;
+        // Check whether the current command is an EMAIL command.
+        if (line.rfind("EMAIL", 0) == 0) {
 
-                // Extracts and trims the date string
-                string dt = data.substr(lastComma + 1);
-                start = dt.find_first_not_of(" \t");
-                end = dt.find_last_not_of(" \t");
-                newEmail.date = (start != string::npos) ? dt.substr(start, end - start + 1) : dt;
+            // Remove the "EMAIL " portion from the beginning of the line.
+            string data = line.substr(6);
 
-                inboxHeap.insert(newEmail);  // Inserts the parsed email into our custom MaxHeap priority queue
+
+            // Find the first comma between the category and subject.
+            size_t firstComma = data.find(',');
+
+            // Find the final comma between the subject and date.
+            size_t lastComma = data.rfind(',');
+
+
+            // Make sure both commas were found and they are different.
+            if (firstComma != string::npos &&
+                lastComma != string::npos &&
+                firstComma != lastComma) {
+
+                // Create an Email object for the new email.
+                Email newEmail;
+
+
+                // Extract the sender category.
+                string category = data.substr(0, firstComma);
+
+                // Find the first non-space character.
+                size_t start = category.find_first_not_of(" \t");
+
+                // Find the last non-space character.
+                size_t end = category.find_last_not_of(" \t");
+
+
+                // Remove unnecessary spaces from the category.
+                if (start != string::npos) {
+                    newEmail.category =
+                        category.substr(start, end - start + 1);
+                }
+                else {
+                    newEmail.category = category;
+                }
+
+
+                // Extract the subject between the first and last comma.
+                string subject =
+                    data.substr(firstComma + 1,
+                                lastComma - firstComma - 1);
+
+
+                // Find the first non-space character in the subject.
+                start = subject.find_first_not_of(" \t");
+
+                // Find the last non-space character in the subject.
+                end = subject.find_last_not_of(" \t");
+
+
+                // Remove unnecessary spaces from the subject.
+                if (start != string::npos) {
+                    newEmail.subject =
+                        subject.substr(start, end - start + 1);
+                }
+                else {
+                    newEmail.subject = subject;
+                }
+
+
+                // Extract the date after the final comma.
+                string date = data.substr(lastComma + 1);
+
+
+                // Find the first non-space character in the date.
+                start = date.find_first_not_of(" \t");
+
+                // Find the last non-space character in the date.
+                end = date.find_last_not_of(" \t");
+
+
+                // Remove unnecessary spaces from the date.
+                if (start != string::npos) {
+                    newEmail.date =
+                        date.substr(start, end - start + 1);
+                }
+                else {
+                    newEmail.date = date;
+                }
+
+
+                // Add the completed email to the MaxHeap.
+                inboxHeap.insert(newEmail);
             }
-        } else if (line == "NEXT") {         // Checks if the command is exactly "NEXT"
-            if (!inboxHeap.isEmpty()) {      // Verifies that there are emails available in the heap
-                Email topEmail = inboxHeap.peek(); // Retrieves the highest priority email without removing it
-                cout << "Next email:" << endl; // Prints the required header for the next email
-                cout << "Sender: " << topEmail.category << endl; // Prints the sender category
-                cout << "Subject: " << topEmail.subject << endl; // Prints the email subject line
-                cout << "Date: " << topEmail.date << endl;     // Prints the email date
+        }
+
+
+        // Check whether the command is NEXT.
+        else if (line == "NEXT") {
+
+            // Only display an email when the heap is not empty.
+            if (!inboxHeap.isEmpty()) {
+
+                // Get the highest-priority email without removing it.
+                Email topEmail = inboxHeap.peek();
+
+
+                // Display the required email information.
+                cout << "Next email:" << endl;
+                cout << "Sender: " << topEmail.category << endl;
+                cout << "Subject: " << topEmail.subject << endl;
+                cout << "Date: " << topEmail.date << endl;
             }
-        } else if (line == "READ") {         // Checks if the command is exactly "READ"
-            if (!inboxHeap.isEmpty()) {      // Verifies that there are emails to remove from the heap
-                inboxHeap.removeMax();       // Removes the highest priority email from the priority queue
+        }
+
+
+        // Check whether the command is READ.
+        else if (line == "READ") {
+
+            // Only remove an email when the heap is not empty.
+            if (!inboxHeap.isEmpty()) {
+
+                // Remove the highest-priority unread email.
+                inboxHeap.removeMax();
             }
-        } else if (line.rfind("COUNT", 0) == 0) { // Checks if the line starts with "COUNT"
-            cout << "There are " << inboxHeap.size() << " emails to read." << endl; // Prints the current unread count
+        }
+
+
+        // Check whether the command begins with COUNT.
+        else if (line.rfind("COUNT", 0) == 0) {
+
+            // Display the current number of unread emails.
+            cout << "There are "
+                 << inboxHeap.size()
+                 << " emails to read."
+                 << endl;
         }
     }
 
-    return 0; // Signals to the operating system that program execution ended successfully
-} // End of main function
+
+    // Return 0 to indicate that the program finished successfully.
+    return 0;
+}
